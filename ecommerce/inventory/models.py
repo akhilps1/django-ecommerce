@@ -142,6 +142,50 @@ class Brand(models.Model):
         return self.name
 
 
+class ProductAttribute(models.Model):
+    """Product attribute table"""
+
+    name = models.CharField(
+        max_length=255,
+        unique=True,
+        null=False,
+        blank=False,
+        verbose_name=_("product attribute name"),
+        help_text=_("format: required, unique, max-255"),
+    )
+    description = models.TextField(
+        unique=False,
+        null=False,
+        blank=False,
+        verbose_name=_("product attribute description"),
+        help_text=_("format: required"),
+    )
+
+    def __str__(self):
+        return self.name
+
+
+class ProductAttributeValue(models.Model):
+    """Product attribute value table"""
+
+    product_attribute = models.ForeignKey(
+        ProductAttribute,
+        related_name="product_attribute",
+        on_delete=models.PROTECT,
+    )
+    attribute_value = models.CharField(
+        max_length=255,
+        unique=False,
+        null=False,
+        blank=False,
+        verbose_name=_("attribute value"),
+        help_text=_("format: text or numbers, required, max-255"),
+    )
+
+    def __str__(self) -> str:
+        return f"{self.product_attribute.name}:{self.attribute_value}"
+
+
 class ProductInventory(models.Model):
     """Product Inventory Table"""
 
@@ -168,11 +212,11 @@ class ProductInventory(models.Model):
         Product, related_name="product", on_delete=models.PROTECT
     )
     brand = models.ForeignKey(Brand, related_name="brand", on_delete=models.PROTECT)
-    # attribute_values = models.ManyToManyField(
-    #     ProductAttribueValue,
-    #     related_name="product_attribute_value",
-    #     through="ProductAttribueValue"
-    # )
+    attribute_values = models.ManyToManyField(
+        ProductAttributeValue,
+        related_name="product_attribute_values",
+        through="ProductAttribueValues",
+    )
     is_active = models.BooleanField(
         default=True,
         verbose_name=_("product visibility"),
@@ -232,3 +276,100 @@ class ProductInventory(models.Model):
 
     def __str__(self):
         return self.product.name
+
+
+class Media(models.Model):
+    """The product image table"""
+
+    product_inventory = models.ForeignKey(
+        ProductInventory,
+        on_delete=models.PROTECT,
+        related_name="media_product_inventory",
+    )
+    models.ImageField(
+        unique=False,
+        null=False,
+        blank=False,
+        upload_to="images/",
+        default="images/default.png",
+        help_text=_("format: required,default-default.png"),
+    )
+    alt_text = models.CharField(
+        max_length=255,
+        unique=False,
+        null=False,
+        blank=False,
+        verbose_name=_("altranative text"),
+        help_text=_("format: required, max-255"),
+    )
+    is_featur = models.BooleanField(
+        default=False,
+        verbose_name=_("product default image"),
+        help_text=_("format: default=false, true=default image"),
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        editable=False,
+        verbose_name=_("date sub-product created"),
+        help_text=_("format: Y-m-d H:M:S"),
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name=_("date sub-product updated"),
+        help_text=_("format: Y-m-d H:M:S"),
+    )
+
+    class Meta:
+        verbose_name = _("product image")
+        verbose_name_plural = _("product images")
+
+
+class Stock(models.Model):
+    """Stock details table"""
+
+    product_inventory = models.OneToOneField(
+        ProductInventory,
+        related_name="product_inventory",
+        on_delete=models.PROTECT,
+    )
+    last_checked = models.DateTimeField(
+        unique=False,
+        null=True,
+        blank=True,
+        verbose_name=_("inventory stock check date"),
+        help_text=_("fromat: Y-m-d H:M:S, null=True, blank=True"),
+    )
+    units = models.IntegerField(
+        default=0,
+        unique=False,
+        null=False,
+        blank=False,
+        verbose_name=_("unit/qty of stock"),
+        help_text=_("format: required, default-0"),
+    )
+    units_sold = models.IntegerField(
+        default=0,
+        unique=False,
+        null=False,
+        blank=False,
+        verbose_name=_("unit sold to date"),
+        help_text=("format: required, default-0"),
+    )
+
+
+class ProductAttributeValues(models.Model):
+    """Product attribute values link table"""
+
+    attributevalues = models.ForeignKey(
+        "ProductAttributeValue",
+        related_name="attributevaluess",
+        on_delete=models.PROTECT,
+    )
+    prooductinventory = models.ForeignKey(
+        ProductInventory,
+        related_name="productattributevaluess",
+        on_delete=models.PROTECT,
+    )
+
+    class Meta:
+        unique_together = (("attributevalues", "productinventory"),)
